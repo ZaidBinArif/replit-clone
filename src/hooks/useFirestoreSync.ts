@@ -31,7 +31,7 @@ export function useFirestoreSync() {
   // Load projects from Firestore on login
   // ============================================
   useEffect(() => {
-    if (!user || user.uid === "dev-user") {
+    if (!user) {
       hasLoadedRef.current = false;
       return;
     }
@@ -95,7 +95,7 @@ export function useFirestoreSync() {
   // Auto-save projects when they change (debounced)
   // ============================================
   useEffect(() => {
-    if (!user || user.uid === "dev-user") return;
+    if (!user) return;
     if (!hasLoadedRef.current) return;
 
     // Don't save while AI is streaming — too many intermediate states
@@ -122,7 +122,7 @@ export function useFirestoreSync() {
   // Save immediately when AI finishes responding
   // ============================================
   useEffect(() => {
-    if (!user || user.uid === "dev-user") return;
+    if (!user) return;
 
     // Detect transition: isChatLoading true → false (AI just finished)
     if (prevChatLoadingRef.current && !isChatLoading) {

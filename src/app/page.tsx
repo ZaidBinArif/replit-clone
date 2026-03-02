@@ -4,34 +4,26 @@ import { useEffect, useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { onAuthChange } from "@/lib/firebase";
 import { IDELayout } from "@/components/layout/IDELayout";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import { useFirestoreSync } from "@/hooks/useFirestoreSync";
 
 /**
- * Main IDE page — served WITH COOP/COEP headers (via middleware).
- * crossOriginIsolated = true here, so WebContainers work.
- * Firestore read/write also works (uses fetch/CORS, unaffected by COOP/COEP).
+ * Main page — served WITH COOP/COEP headers (via next.config headers).
  *
- * If the user is not authenticated, we redirect to /login (which has NO
- * COOP/COEP headers, so Firebase popup auth works there).
+ * When authenticated:
+ *   - No active project → show Dashboard (project grid)
+ *   - Active project selected → show IDE layout
+ *
+ * When not authenticated → redirect to /login.
  */
 export default function Home() {
-  const user = useProjectStore((s) => s.user);
   const setUser = useProjectStore((s) => s.setUser);
+  const activeProjectId = useProjectStore((s) => s.activeProjectId);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for guest mode first
-    const isGuest = typeof window !== "undefined" && sessionStorage.getItem("codestudio_guest") === "true";
-    if (isGuest) {
-      setUser({
-        uid: "dev-user",
-        email: "dev@codestudio.ai",
-        displayName: "Developer",
-        photoURL: "",
-      });
-      setIsLoading(false);
-      return () => {};
-    }
+  useFirestoreSync();
 
+  useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -42,12 +34,10 @@ export default function Home() {
         });
         setIsLoading(false);
       } else {
-        // Not authenticated — send to /login (no COOP/COEP there)
         window.location.href = "/login";
       }
     });
 
-    // Safety timeout — if auth check hangs, redirect to login
     const timeout = setTimeout(() => {
       if (!useProjectStore.getState().user) {
         window.location.href = "/login";
@@ -62,24 +52,17 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div
-        className="fixed inset-0 flex items-center justify-center"
-        style={{ background: "var(--color-bg-root)" }}
-      >
+      <div className="fixed inset-0 flex items-center justify-center bg-zinc-950">
         <div className="text-center">
-          <div
-            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto mb-4"
-            style={{
-              borderColor: "var(--color-border-default)",
-              borderTopColor: "var(--color-accent)",
-            }}
-          />
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-            Loading CodeStudio...
-          </p>
+          <div className="w-10 h-10 border-2 border-zinc-800 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-zinc-500">Loading CodeStudio...</p>
         </div>
       </div>
     );
+  }
+
+  if (!activeProjectId) {
+    return <DashboardPage />;
   }
 
   return <IDELayout />;

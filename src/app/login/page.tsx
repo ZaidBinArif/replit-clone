@@ -34,19 +34,10 @@ export default function LoginRoute() {
 
   if (checking) {
     return (
-      <div
-        className="fixed inset-0 flex items-center justify-center"
-        style={{ background: "var(--color-bg-root)" }}
-      >
+      <div className="fixed inset-0 flex items-center justify-center bg-zinc-950">
         <div className="text-center">
-          <div
-            className="w-10 h-10 border-2 rounded-full animate-spin mx-auto mb-4"
-            style={{
-              borderColor: "var(--color-border-default)",
-              borderTopColor: "var(--color-accent)",
-            }}
-          />
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          <div className="w-10 h-10 border-2 border-zinc-800 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-zinc-500">
             Checking authentication...
           </p>
         </div>

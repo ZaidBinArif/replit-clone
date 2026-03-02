@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useProjectStore } from "@/stores/project-store";
-import { User, Bot, FileCode2, Check, Terminal } from "lucide-react";
+import { User, Sparkles, Check, Terminal } from "lucide-react";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
 interface Props {
@@ -16,7 +16,6 @@ export function ChatMessage({ message }: Props) {
   const openFile = useProjectStore((s) => s.openFile);
   const isUser = message.role === "user";
 
-  // Parse content: extract file operations and shell commands, clean text
   const { textContent, fileOps, shellOps } = useMemo(() => {
     if (isUser) return { textContent: message.content, fileOps: [], shellOps: [] };
 
@@ -24,7 +23,6 @@ export function ChatMessage({ message }: Props) {
     const shells: string[] = [];
     let text = message.content;
 
-    // Extract file paths
     const fileMatches = text.matchAll(
       /<boltAction\s+type="file"\s+filePath="([^"]+)">/g
     );
@@ -32,7 +30,6 @@ export function ChatMessage({ message }: Props) {
       files.push(match[1]);
     }
 
-    // Extract shell commands
     const shellMatches = text.matchAll(
       /<boltAction\s+type="shell"\s+command="([^"]+)"\s*\/>/g
     );
@@ -40,7 +37,6 @@ export function ChatMessage({ message }: Props) {
       shells.push(match[1]);
     }
 
-    // Remove artifact blocks for display
     text = text.replace(/<boltArtifact[^>]*>/g, "");
     text = text.replace(/<\/boltArtifact>/g, "");
     text = text.replace(/<boltAction\s+type="file"\s+filePath="[^"]+">[\s\S]*?<\/boltAction>/g, "");
@@ -48,21 +44,15 @@ export function ChatMessage({ message }: Props) {
     text = text.trim();
 
     if (!text && files.length > 0) {
-      text = "I've set up the project files:";
+      text = "I've updated the project files.";
     }
 
     return { textContent: text, fileOps: files, shellOps: shells };
   }, [message.content, isUser]);
 
   return (
-    <div
-      className="px-4 py-4 animate-slide-up"
-      style={{
-        background: isUser ? "transparent" : "var(--color-bg-surface)",
-        borderBottom: "1px solid var(--color-border-subtle)",
-      }}
-    >
-      <div className="flex gap-3 max-w-full">
+    <div className={`px-5 py-3 ${isUser ? "" : "bg-white/[0.02]"}`}>
+      <div className="flex gap-3 items-start">
         {/* Avatar */}
         <div className="flex-shrink-0 mt-0.5">
           {isUser ? (
@@ -70,62 +60,37 @@ export function ChatMessage({ message }: Props) {
               <img
                 src={user.photoURL}
                 alt=""
-                className="w-6 h-6 rounded-full"
+                className="w-7 h-7 rounded-full object-cover"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: "var(--color-bg-elevated)" }}
-              >
-                <User className="w-3.5 h-3.5" style={{ color: "var(--color-text-secondary)" }} />
+              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-indigo-600 text-white">
+                <User className="w-3.5 h-3.5" />
               </div>
             )
           ) : (
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center"
-              style={{
-                background: "var(--color-accent-subtle)",
-                border: "1px solid var(--color-accent-muted)",
-              }}
-            >
-              <Bot className="w-3.5 h-3.5" style={{ color: "var(--color-accent)" }} />
+            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-indigo-500/15">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <p
-            className="text-xs font-medium mb-1.5"
-            style={{
-              color: isUser ? "var(--color-text-secondary)" : "var(--color-accent)",
-            }}
-          >
-            {isUser ? "You" : "CodeStudio AI"}
-          </p>
-
-          {/* Message text with markdown */}
-          <div className="prose-chat text-sm leading-relaxed break-words">
+        <div className="flex-1 min-w-0 overflow-hidden pt-0.5">
+          <span className="text-[12px] font-semibold text-zinc-400 mb-1 block">
+            {isUser ? (user?.displayName || "You") : "AI Copilot"}
+          </span>
+          <div className="prose-chat text-[13px] leading-[1.65] break-words text-zinc-300 font-sans">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                p: ({ children }) => (
-                  <p className="mb-2 last:mb-0" style={{ color: "var(--color-text-primary)" }}>
-                    {children}
-                  </p>
-                ),
+                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                 code: ({ className, children, ...props }) => {
                   const isInline = !className;
                   if (isInline) {
                     return (
                       <code
-                        className="px-1.5 py-0.5 rounded text-[13px]"
-                        style={{
-                          background: "var(--color-bg-elevated)",
-                          color: "var(--color-accent)",
-                          fontFamily: "var(--font-mono)",
-                        }}
+                        className="px-1.5 py-0.5 rounded-md bg-white/[0.06] text-indigo-300 font-mono text-[12px]"
                         {...props}
                       >
                         {children}
@@ -134,13 +99,7 @@ export function ChatMessage({ message }: Props) {
                   }
                   return (
                     <code
-                      className="block p-3 rounded-lg my-2 text-[13px] overflow-x-auto"
-                      style={{
-                        background: "var(--color-bg-elevated)",
-                        color: "var(--color-text-primary)",
-                        fontFamily: "var(--font-mono)",
-                        border: "1px solid var(--color-border-default)",
-                      }}
+                      className="block p-3 rounded-lg my-2 text-[12px] bg-[#0a0a12] border border-white/[0.06] text-zinc-300 font-mono overflow-x-auto"
                       {...props}
                     >
                       {children}
@@ -149,42 +108,28 @@ export function ChatMessage({ message }: Props) {
                 },
                 pre: ({ children }) => <>{children}</>,
                 ul: ({ children }) => (
-                  <ul className="list-disc list-inside mb-2 space-y-1" style={{ color: "var(--color-text-primary)" }}>
+                  <ul className="list-disc list-outside mb-2 space-y-1 ml-4">
                     {children}
                   </ul>
                 ),
                 ol: ({ children }) => (
-                  <ol className="list-decimal list-inside mb-2 space-y-1" style={{ color: "var(--color-text-primary)" }}>
+                  <ol className="list-decimal list-outside mb-2 space-y-1 ml-4">
                     {children}
                   </ol>
                 ),
-                li: ({ children }) => (
-                  <li style={{ color: "var(--color-text-primary)" }}>{children}</li>
-                ),
+                li: ({ children }) => <li>{children}</li>,
                 strong: ({ children }) => (
-                  <strong style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{children}</strong>
-                ),
-                em: ({ children }) => (
-                  <em style={{ color: "var(--color-text-secondary)" }}>{children}</em>
+                  <strong className="font-semibold text-white">{children}</strong>
                 ),
                 a: ({ href, children }) => (
                   <a
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "var(--color-accent)", textDecoration: "underline" }}
+                    className="text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
                   >
                     {children}
                   </a>
-                ),
-                h1: ({ children }) => (
-                  <h3 className="text-base font-semibold mb-2 mt-3" style={{ color: "var(--color-text-primary)" }}>{children}</h3>
-                ),
-                h2: ({ children }) => (
-                  <h4 className="text-sm font-semibold mb-1.5 mt-2" style={{ color: "var(--color-text-primary)" }}>{children}</h4>
-                ),
-                h3: ({ children }) => (
-                  <h5 className="text-sm font-medium mb-1 mt-2" style={{ color: "var(--color-text-primary)" }}>{children}</h5>
                 ),
               }}
             >
@@ -194,29 +139,15 @@ export function ChatMessage({ message }: Props) {
 
           {/* File operation chips */}
           {fileOps.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
               {fileOps.map((filePath, i) => (
                 <button
                   key={`${filePath}-${i}`}
                   onClick={() => openFile(filePath)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-all duration-150 cursor-pointer"
-                  style={{
-                    background: "var(--color-bg-elevated)",
-                    border: "1px solid var(--color-border-default)",
-                    color: "var(--color-text-secondary)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-accent-muted)";
-                    e.currentTarget.style.color = "var(--color-accent)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-border-default)";
-                    e.currentTarget.style.color = "var(--color-text-secondary)";
-                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/15 hover:bg-emerald-500/15 transition-colors cursor-pointer"
                 >
-                  <Check className="w-3 h-3" style={{ color: "var(--color-success)" }} />
-                  <FileCode2 className="w-3 h-3" />
-                  <span className="truncate max-w-[200px]">{filePath}</span>
+                  <Check className="w-3 h-3 text-emerald-400" strokeWidth={2.5} />
+                  <span className="text-[11px] font-mono text-emerald-300 truncate max-w-[200px]">{filePath}</span>
                 </button>
               ))}
             </div>
@@ -224,19 +155,14 @@ export function ChatMessage({ message }: Props) {
 
           {/* Shell command chips */}
           {shellOps.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
               {shellOps.map((cmd, i) => (
                 <div
                   key={`shell-${i}`}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono"
-                  style={{
-                    background: "var(--color-bg-elevated)",
-                    border: "1px solid var(--color-border-default)",
-                    color: "var(--color-text-muted)",
-                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06]"
                 >
-                  <Terminal className="w-3 h-3" />
-                  <span className="truncate max-w-[250px]">{cmd}</span>
+                  <Terminal className="w-3 h-3 text-zinc-400" strokeWidth={2} />
+                  <span className="text-[11px] font-mono text-zinc-400 truncate max-w-[200px]">{cmd}</span>
                 </div>
               ))}
             </div>

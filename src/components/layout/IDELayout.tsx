@@ -8,7 +8,6 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { useAutoChat } from "@/hooks/useAutoChat";
 import { useSummarization } from "@/hooks/useSummarization";
-import { useFirestoreSync } from "@/hooks/useFirestoreSync";
 import { Eye, EyeOff } from "lucide-react";
 
 export function IDELayout() {
@@ -18,12 +17,8 @@ export function IDELayout() {
   const togglePreview = useProjectStore((s) => s.togglePreview);
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
 
-  // Auto-trigger AI for newly created projects
   useAutoChat();
-  // Run async summarization after AI responses
   useSummarization();
-  // Sync projects with Firestore (load on login, auto-save on changes)
-  useFirestoreSync();
 
   const [isDragging, setIsDragging] = useState<"sidebar" | "editor-chat" | "preview" | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -80,10 +75,10 @@ export function IDELayout() {
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   return (
-    <div ref={containerRef} className="flex h-screen w-screen overflow-hidden">
+    <div ref={containerRef} className="flex h-screen w-screen overflow-hidden bg-[#1e1e1e] text-[#cccccc] font-sans">
       {/* Sidebar */}
       <div
-        className="flex-shrink-0 h-full"
+        className="flex-shrink-0 h-full bg-[#18181b]"
         style={{ width: `${panelSizes.sidebar}px` }}
       >
         <Sidebar />
@@ -96,7 +91,7 @@ export function IDELayout() {
       />
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-950">
         {/* Top: Editor + Chat */}
         <div
           className="flex overflow-hidden"
@@ -148,7 +143,7 @@ export function IDELayout() {
         {/* Preview */}
         {showPreview && activeProjectId && (
           <div
-            className="overflow-hidden"
+            className="overflow-hidden bg-zinc-950"
             style={{ height: `${panelSizes.previewHeight}%` }}
           >
             <PreviewPanel />
@@ -160,30 +155,16 @@ export function IDELayout() {
       {activeProjectId && (
         <button
           onClick={togglePreview}
-          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer"
-          style={{
-            background: "var(--color-bg-elevated)",
-            border: "1px solid var(--color-border-default)",
-            color: "var(--color-text-secondary)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-accent-muted)";
-            e.currentTarget.style.color = "var(--color-accent)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-border-default)";
-            e.currentTarget.style.color = "var(--color-text-secondary)";
-          }}
+          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium bg-zinc-900/80 backdrop-blur-md border border-white/10 text-zinc-400 hover:text-zinc-100 hover:border-white/20 shadow-xl transition-all duration-200 cursor-pointer"
         >
           {showPreview ? (
             <>
-              <EyeOff className="w-3.5 h-3.5" />
+              <EyeOff className="w-4 h-4" />
               Hide Preview
             </>
           ) : (
             <>
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-4 h-4" />
               Show Preview
             </>
           )}
@@ -192,3 +173,4 @@ export function IDELayout() {
     </div>
   );
 }
+

@@ -58,6 +58,8 @@ interface ProjectState {
   setChatLoading: (loading: boolean) => void;
   sidebarSection: "projects" | "files";
   setSidebarSection: (section: "projects" | "files") => void;
+  showNewProject: boolean;
+  setShowNewProject: (show: boolean) => void;
 }
 
 // ============================================
@@ -319,4 +321,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setChatLoading: (loading) => set({ isChatLoading: loading }),
   sidebarSection: "projects" as const,
   setSidebarSection: (section) => set({ sidebarSection: section }),
+  showNewProject: false,
+  setShowNewProject: (show) => set({ showNewProject: show }),
 }));

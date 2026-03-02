@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import Editor, { type OnMount, loader } from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import { useProjectStore } from "@/stores/project-store";
 import { getLanguageFromPath } from "@/lib/utils";
 import { codeStudioTheme } from "@/lib/monaco-theme";
@@ -44,31 +44,24 @@ export function CodeEditor() {
 
   if (!file) {
     return (
-      <div
-        className="flex-1 flex items-center justify-center"
-        style={{ background: "var(--color-bg-root)" }}
-      >
-        <div className="text-center">
-          <div className="text-5xl mb-4 opacity-[0.06]">{"</>"}</div>
-          <p
-            className="text-sm"
-            style={{ color: "var(--color-text-muted)" }}
-          >
+      <div className="flex-1 flex items-center justify-center bg-[#1e1e1e]">
+        <div className="text-center opacity-40 select-none">
+          <svg className="w-24 h-24 mx-auto mb-6 opacity-30 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <path d="m10 13-2 2 2 2"></path>
+            <path d="m14 17 2-2-2-2"></path>
+          </svg>
+          <div className="text-[14px] text-white tracking-wide">
             Select a file to start editing
-          </p>
-          <p
-            className="text-xs mt-1"
-            style={{ color: "var(--color-text-muted)", opacity: 0.5 }}
-          >
-            Or let AI generate code for you
-          </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-hidden" style={{ background: "#0C0A09" }}>
+    <div className="flex-1 overflow-hidden bg-[#1e1e1e]">
       <Editor
         height="100%"
         language={getLanguageFromPath(activeTabPath || "")}
@@ -77,31 +70,22 @@ export function CodeEditor() {
         onMount={handleEditorMount}
         theme="vs-dark"
         loading={
-          <div
-            className="flex items-center justify-center h-full"
-            style={{ background: "#0C0A09" }}
-          >
-            <div
-              className="w-6 h-6 border-2 rounded-full animate-spin"
-              style={{
-                borderColor: "var(--color-border-default)",
-                borderTopColor: "var(--color-accent)",
-              }}
-            />
+          <div className="flex items-center justify-center h-full bg-[#1e1e1e]">
+            <div className="w-5 h-5 border-[2px] border-[#333333] border-t-[#007acc] rounded-full animate-spin" />
           </div>
         }
         options={{
           fontSize: 13,
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
           fontLigatures: true,
-          lineHeight: 20,
-          padding: { top: 12 },
-          minimap: { enabled: true, scale: 1, showSlider: "mouseover" },
+          lineHeight: 22,
+          padding: { top: 16 },
+          minimap: { enabled: true, scale: 0.75, showSlider: "mouseover" },
           scrollBeyondLastLine: false,
           smoothScrolling: true,
           cursorSmoothCaretAnimation: "on",
           cursorBlinking: "smooth",
-          renderLineHighlight: "gutter",
+          renderLineHighlight: "all",
           bracketPairColorization: { enabled: true },
           automaticLayout: true,
           tabSize: 2,
@@ -111,8 +95,8 @@ export function CodeEditor() {
             showSnippets: true,
           },
           scrollbar: {
-            verticalScrollbarSize: 6,
-            horizontalScrollbarSize: 6,
+            verticalScrollbarSize: 10,
+            horizontalScrollbarSize: 10,
           },
         }}
       />

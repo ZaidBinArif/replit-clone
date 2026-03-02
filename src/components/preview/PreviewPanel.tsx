@@ -13,20 +13,9 @@ import {
   ExternalLink,
   Globe,
   Loader2,
-  Monitor,
-  Smartphone,
-  Tablet,
   Terminal,
   Play,
 } from "lucide-react";
-
-type ViewportSize = "desktop" | "tablet" | "mobile";
-
-const viewportWidths: Record<ViewportSize, string> = {
-  desktop: "100%",
-  tablet: "768px",
-  mobile: "375px",
-};
 
 /**
  * Compute a simple fingerprint of all file contents.
@@ -44,7 +33,6 @@ export function PreviewPanel() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [viewport, setViewport] = useState<ViewportSize>("desktop");
   const [logs, setLogs] = useState<string>("");
   const [showLogs, setShowLogs] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -254,7 +242,7 @@ export function PreviewPanel() {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.tailwindcss.com"><\/script>
 <style>${globalCss}</style>
-</head><body class="bg-gray-50 min-h-screen flex items-center justify-center">
+</head><body class="bg-gray-50 min-h-screen flex items-center justify-center font-sans">
 <div class="text-center p-8">
   <div class="text-4xl mb-4">🚀</div>
   <h2 class="text-xl font-semibold text-gray-800 mb-2">Project Ready</h2>
@@ -262,15 +250,6 @@ export function PreviewPanel() {
     ${Object.keys(files).length} files created.
     WebContainer will provide full framework preview.
   </p>
-  <div class="mt-4 flex flex-wrap gap-2 justify-center">
-    ${Object.keys(files)
-      .slice(0, 8)
-      .map(
-        (f) =>
-          `<span class="px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600">${f}</span>`
-      )
-      .join("")}
-  </div>
 </div>
 </body></html>`;
       }
@@ -290,154 +269,59 @@ export function PreviewPanel() {
   if (!showPreview || !activeProject) return null;
 
   return (
-    <div
-      className="flex flex-col h-full overflow-hidden"
-      style={{
-        background: "var(--color-bg-root)",
-        borderTop: "1px solid var(--color-border-default)",
-      }}
-    >
+    <div className="flex flex-col h-full overflow-hidden bg-[#1e1e1e] border-t border-[#2b2b2b]">
       {/* Browser toolbar */}
-      <div
-        className="flex items-center gap-2 px-3 py-1.5 flex-shrink-0"
-        style={{
-          background: "var(--color-bg-surface)",
-          borderBottom: "1px solid var(--color-border-default)",
-        }}
-      >
-        {/* URL bar */}
-        <div
-          className="flex items-center gap-2 flex-1 px-3 py-1 rounded-md"
-          style={{
-            background: "var(--color-bg-elevated)",
-            border: "1px solid var(--color-border-default)",
-          }}
+      <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0 bg-[#252526] border-b border-[#2b2b2b]">
+        {/* Actions */}
+        <button
+          onClick={handleRefresh}
+          className="p-1 rounded-[3px] text-[#cccccc] hover:bg-[#333333] hover:text-white transition-none cursor-pointer"
+          title="Refresh"
         >
+          <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+        </button>
+
+        {/* URL bar */}
+        <div className="flex items-center gap-2 flex-1 px-3 py-1 rounded-[3px] bg-[#3c3c3c] border border-transparent focus-within:border-[#007acc] transition-colors">
           {isBooting ? (
-            <Loader2
-              className="w-3 h-3 animate-spin"
-              style={{ color: "var(--color-accent)" }}
-            />
+            <Loader2 className="w-3 h-3 animate-spin text-[#007acc]" />
           ) : isSyncing ? (
-            <Loader2
-              className="w-3 h-3 animate-spin"
-              style={{ color: "var(--color-warning, #f59e0b)" }}
-            />
+            <Loader2 className="w-3 h-3 animate-spin text-[#cca700]" />
           ) : (
-            <Globe
-              className="w-3 h-3"
-              style={{
-                color: previewUrl
-                  ? "var(--color-success)"
-                  : "var(--color-text-muted)",
-              }}
-            />
+            <Globe className={`w-3 h-3 ${previewUrl ? "text-[#89d185]" : "text-[#888888]"}`} />
           )}
-          <span
-            className="text-xs truncate"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
+          <span className="text-[12px] font-mono text-[#cccccc] truncate select-all">
             {isBooting
-              ? "Starting dev server..."
+              ? "Starting server..."
               : isSyncing
               ? "Syncing files..."
               : previewUrl
-              ? "localhost:3000"
-              : "No preview available"}
+              ? "http://localhost:3000"
+              : "No preview"}
           </span>
         </div>
 
-        {/* Viewport toggles */}
-        <div className="flex items-center gap-0.5">
-          {(
-            [
-              { id: "desktop", icon: Monitor },
-              { id: "tablet", icon: Tablet },
-              { id: "mobile", icon: Smartphone },
-            ] as const
-          ).map(({ id, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setViewport(id)}
-              className="p-1.5 rounded-md transition-colors duration-150 cursor-pointer"
-              style={{
-                color:
-                  viewport === id
-                    ? "var(--color-accent)"
-                    : "var(--color-text-muted)",
-                background:
-                  viewport === id
-                    ? "var(--color-accent-subtle)"
-                    : "transparent",
-              }}
-              onMouseEnter={(e) => {
-                if (viewport !== id) {
-                  e.currentTarget.style.background = "var(--color-bg-elevated)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (viewport !== id) {
-                  e.currentTarget.style.background = "transparent";
-                }
-              }}
-              title={id}
-            >
-              <Icon className="w-3.5 h-3.5" />
-            </button>
-          ))}
-        </div>
-
-        {/* Toggle logs */}
+        {/* Right Actions */}
         <button
           onClick={() => setShowLogs(!showLogs)}
-          className="p-1.5 rounded-md transition-colors duration-150 cursor-pointer"
-          style={{
-            color: showLogs ? "var(--color-accent)" : "var(--color-text-muted)",
-            background: showLogs ? "var(--color-accent-subtle)" : "transparent",
-          }}
-          title="Toggle terminal logs"
+          className={`p-1 rounded-[3px] transition-none cursor-pointer flex items-center gap-1.5 px-2 ${
+            showLogs
+              ? "bg-[#333333] text-white"
+              : "text-[#cccccc] hover:bg-[#333333] hover:text-white"
+          }`}
+          title="Toggle Logs"
         >
-          <Terminal className="w-3.5 h-3.5" />
+          <Terminal className="w-3.5 h-3.5" strokeWidth={2} />
+          <span className="text-[11px] font-semibold tracking-wide uppercase">Logs</span>
         </button>
 
-        {/* Recompile button */}
         <button
           onClick={handleRecompile}
           disabled={!hasBootedRef.current || isSyncing || isBooting}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{
-            color: "var(--color-accent)",
-            background: "var(--color-accent-subtle)",
-            border: "1px solid var(--color-accent-muted)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-accent-muted)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--color-accent-subtle)";
-          }}
-          title="Write all files to WebContainer and refresh preview"
+          className="p-1 rounded-[3px] text-[#cccccc] hover:bg-[#333333] hover:text-white transition-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Recompile"
         >
-          <Play className="w-3 h-3" />
-          Recompile
-        </button>
-
-        {/* Refresh */}
-        <button
-          onClick={handleRefresh}
-          className="p-1.5 rounded-md transition-colors duration-150 cursor-pointer"
-          style={{ color: "var(--color-text-muted)" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-bg-elevated)";
-            e.currentTarget.style.color = "var(--color-text-secondary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "var(--color-text-muted)";
-          }}
-          title="Refresh iframe"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <Play className="w-3.5 h-3.5" strokeWidth={2} />
         </button>
 
         {previewUrl && (
@@ -445,18 +329,10 @@ export function PreviewPanel() {
             href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 rounded-md transition-colors duration-150 cursor-pointer"
-            style={{ color: "var(--color-text-muted)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--color-bg-elevated)";
-              e.currentTarget.style.color = "var(--color-text-secondary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--color-text-muted)";
-            }}
+            className="p-1 rounded-[3px] text-[#cccccc] hover:bg-[#333333] hover:text-white transition-none cursor-pointer"
+            title="Open in Browser"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3.5 h-3.5" strokeWidth={2} />
           </a>
         )}
       </div>
@@ -465,91 +341,37 @@ export function PreviewPanel() {
       <div className="flex-1 flex overflow-hidden">
         {/* Preview iframe */}
         <div
-          className="flex-1 flex items-start justify-center overflow-auto"
-          style={{ display: showLogs ? undefined : "flex" }}
+          className="flex-1 flex items-start justify-center bg-white"
+          style={{ display: showLogs ? "none" : "block" }}
         >
           {isBooting ? (
-            <div className="flex flex-col items-center justify-center h-full w-full gap-3">
-              <Loader2
-                className="w-6 h-6 animate-spin"
-                style={{ color: "var(--color-accent)" }}
-              />
-              <p
-                className="text-sm"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Booting environment...
+            <div className="flex flex-col items-center justify-center h-full w-full gap-3 bg-[#1e1e1e]">
+              <Loader2 className="w-6 h-6 animate-spin text-[#007acc]" />
+              <p className="text-[13px] text-[#cccccc] font-sans">
+                Booting WebContainer...
               </p>
             </div>
           ) : previewUrl ? (
             <iframe
               ref={iframeRef}
               src={previewUrl}
-              className="bg-white"
-              style={{
-                width: viewportWidths[viewport],
-                height: "100%",
-                maxWidth: "100%",
-                border: "none",
-                transition: "width 300ms ease",
-              }}
+              className="w-full h-full border-none bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
               title="Preview"
             />
           ) : (
-            <div className="flex items-center justify-center h-full w-full">
-              <div className="text-center">
-                <Monitor
-                  className="w-8 h-8 mx-auto mb-3 opacity-15"
-                  style={{ color: "var(--color-text-muted)" }}
-                />
-                <p
-                  className="text-sm"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  Preview will appear here
-                </p>
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--color-text-muted)", opacity: 0.5 }}
-                >
-                  Files need to be generated first
-                </p>
-              </div>
+            <div className="flex items-center justify-center h-full w-full bg-[#1e1e1e]">
+              <p className="text-[13px] text-[#888888] font-sans">
+                Preview will appear here
+              </p>
             </div>
           )}
         </div>
 
         {/* Terminal logs panel */}
         {showLogs && (
-          <div
-            className="flex-shrink-0 overflow-hidden flex flex-col"
-            style={{
-              width: "40%",
-              borderLeft: "1px solid var(--color-border-default)",
-              background: "var(--color-bg-surface)",
-            }}
-          >
-            <div
-              className="px-3 py-1.5 flex items-center justify-between flex-shrink-0"
-              style={{
-                borderBottom: "1px solid var(--color-border-default)",
-              }}
-            >
-              <span
-                className="text-xs font-medium"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Terminal
-              </span>
-            </div>
-            <pre
-              className="flex-1 overflow-auto p-3 text-xs leading-relaxed"
-              style={{
-                fontFamily: "var(--font-mono)",
-                color: "var(--color-text-secondary)",
-              }}
-            >
+          <div className="flex-1 flex flex-col bg-[#1e1e1e]">
+            <pre className="flex-1 overflow-auto p-4 text-[12px] leading-relaxed font-mono text-[#cccccc] whitespace-pre-wrap word-break">
               {logs || "Waiting for project to start...\n"}
             </pre>
           </div>

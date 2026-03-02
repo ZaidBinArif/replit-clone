@@ -37,42 +37,21 @@ export function NewProjectDialog({ onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
-      style={{ background: "var(--color-bg-overlay)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg mx-4 rounded-2xl overflow-hidden animate-slide-up"
-        style={{
-          background: "var(--color-bg-surface)",
-          border: "1px solid var(--color-border-default)",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
-        }}
+        className="relative w-full max-w-lg mx-4 rounded-2xl overflow-hidden animate-slide-up bg-zinc-900 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-6 py-4"
-          style={{ borderBottom: "1px solid var(--color-border-default)" }}
-        >
-          <h2
-            className="text-base font-semibold"
-            style={{ color: "var(--color-text-primary)" }}
-          >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h2 className="text-base font-semibold text-zinc-100">
             New Project
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md transition-colors duration-150 cursor-pointer"
-            style={{ color: "var(--color-text-muted)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--color-bg-elevated)";
-              e.currentTarget.style.color = "var(--color-text-secondary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--color-text-muted)";
-            }}
+            className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 transition-colors duration-150 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -81,10 +60,7 @@ export function NewProjectDialog({ onClose }: Props) {
         <div className="px-6 py-5 space-y-5">
           {/* Framework selection */}
           <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-3"
-              style={{ color: "var(--color-text-muted)" }}
-            >
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-3 text-zinc-500">
               Framework
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -94,42 +70,22 @@ export function NewProjectDialog({ onClose }: Props) {
                   <button
                     key={fw.id}
                     onClick={() => setSelectedFramework(fw.id)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-150 cursor-pointer"
-                    style={{
-                      background: isSelected
-                        ? "var(--color-accent-subtle)"
-                        : "var(--color-bg-elevated)",
-                      border: isSelected
-                        ? "1px solid var(--color-accent-muted)"
-                        : "1px solid var(--color-border-default)",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.borderColor = "var(--color-border-active)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.borderColor = "var(--color-border-default)";
-                      }
-                    }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-150 cursor-pointer ${
+                      isSelected
+                        ? "bg-blue-500/10 border border-blue-500/30"
+                        : "bg-zinc-800/50 border border-white/5 hover:border-white/10"
+                    }`}
                   >
                     <span className="text-xl">{fw.icon}</span>
                     <div>
                       <p
-                        className="text-sm font-medium"
-                        style={{
-                          color: isSelected
-                            ? "var(--color-accent)"
-                            : "var(--color-text-primary)",
-                        }}
+                        className={`text-sm font-medium ${
+                          isSelected ? "text-blue-400" : "text-zinc-200"
+                        }`}
                       >
                         {fw.name}
                       </p>
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
+                      <p className="text-xs text-zinc-500">
                         {fw.desc}
                       </p>
                     </div>
@@ -141,10 +97,7 @@ export function NewProjectDialog({ onClose }: Props) {
 
           {/* Prompt */}
           <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-3"
-              style={{ color: "var(--color-text-muted)" }}
-            >
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-3 text-zinc-500">
               What do you want to build?
             </label>
             <textarea
@@ -152,21 +105,7 @@ export function NewProjectDialog({ onClose }: Props) {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="A task management app with drag and drop, categories, and due dates..."
               rows={3}
-              className="w-full px-4 py-3 rounded-xl text-sm resize-none outline-none transition-all duration-200 placeholder:opacity-40"
-              style={{
-                background: "var(--color-bg-elevated)",
-                border: "1px solid var(--color-border-default)",
-                color: "var(--color-text-primary)",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-accent-muted)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 0 3px var(--color-accent-glow)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border-default)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
+              className="w-full px-4 py-3 rounded-xl text-sm resize-none outline-none transition-all duration-200 placeholder:opacity-40 bg-zinc-950 border border-white/10 text-zinc-100 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -178,37 +117,14 @@ export function NewProjectDialog({ onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div
-          className="flex items-center justify-between px-6 py-4"
-          style={{ borderTop: "1px solid var(--color-border-default)" }}
-        >
-          <span
-            className="text-xs"
-            style={{ color: "var(--color-text-muted)" }}
-          >
+        <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-zinc-900/50">
+          <span className="text-xs text-zinc-500">
             Ctrl+Enter to start
           </span>
           <button
             onClick={handleCreate}
             disabled={!prompt.trim()}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            style={{
-              background: "var(--color-accent)",
-              color: "var(--color-text-inverse)",
-            }}
-            onMouseEnter={(e) => {
-              if (prompt.trim()) {
-                e.currentTarget.style.background = "var(--color-accent-hover)";
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 16px var(--color-accent-glow)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--color-accent)";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
+            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer bg-blue-600 text-white hover:bg-blue-500 hover:-translate-y-px hover:shadow-[0_4px_16px_rgba(59,130,246,0.3)]"
           >
             Start Building
             <ArrowRight className="w-4 h-4" />
