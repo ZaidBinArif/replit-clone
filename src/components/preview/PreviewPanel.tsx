@@ -6,20 +6,25 @@ import {
   startProject,
   writeFilesToContainer,
   updateFileInContainer,
+  restartDevServer,
+  runCommand,
+  readDistFiles,
 } from "@/lib/webcontainer";
+import { downloadProjectZip } from "@/lib/download";
 import type { ProjectFile } from "@/types";
 import {
   RefreshCw,
   ExternalLink,
   Globe,
   Loader2,
-  Terminal,
-  Play,
+  RotateCcw,
+  Download,
+  Rocket,
+  ChevronUp,
+  ChevronDown,
+  ScrollText,
 } from "lucide-react";
 
-/**
- * Compute a simple fingerprint of all file contents.
- */
 function computeFilesFingerprint(files: Record<string, ProjectFile>): string {
   const entries = Object.entries(files).sort(([a], [b]) => a.localeCompare(b));
   return entries
@@ -30,18 +35,22 @@ function computeFilesFingerprint(files: Record<string, ProjectFile>): string {
 export function PreviewPanel() {
   const activeProject = useProjectStore((s) => s.getActiveProject());
   const showPreview = useProjectStore((s) => s.showPreview);
+
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [logs, setLogs] = useState<string>("");
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Refs for tracking state across renders
   const lastProjectIdRef = useRef<string | null>(null);
   const hasBootedRef = useRef(false);
   const isBootingRef = useRef(false);
-  const lastFingerprintRef = useRef<string>("");
+  const lastFingerprintRef = useRef("");
   const lastFilesSnapshotRef = useRef<Record<string, ProjectFile>>({});
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -49,17 +58,16 @@ export function PreviewPanel() {
     setLogs((prev) => prev + data);
   }, []);
 
-  // ============================================
-  // Effect 1: Boot WebContainer when project first gets files
-  // ============================================
   useEffect(() => {
-    if (!activeProject) return;
-    if (!showPreview) return;
+    if (showLogs) logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs, showLogs]);
 
+  // Boot WebContainer when project first gets files
+  useEffect(() => {
+    if (!activeProject || !showPreview) return;
     const fileCount = Object.keys(activeProject.files).length;
     if (fileCount === 0) return;
 
-    // If project changed, reset state (WebContainer singleton persists)
     if (lastProjectIdRef.current !== activeProject.id) {
       hasBootedRef.current = false;
       isBootingRef.current = false;
@@ -67,14 +75,12 @@ export function PreviewPanel() {
       lastFilesSnapshotRef.current = {};
       setPreviewUrl(null);
       setLogs("");
+      setDeployUrl(null);
     }
 
     lastProjectIdRef.current = activeProject.id;
-
-    // If already booted or currently booting, skip
     if (hasBootedRef.current || isBootingRef.current) return;
 
-    // Boot the WebContainer
     isBootingRef.current = true;
     setIsBooting(true);
 
@@ -85,13 +91,11 @@ export function PreviewPanel() {
           setPreviewUrl(url);
           hasBootedRef.current = true;
           isBootingRef.current = false;
-          // Take snapshot using CURRENT store state (not stale closure)
           const currentProject = useProjectStore.getState().getActiveProject();
           const currentFiles = currentProject?.files || activeProject.files;
           lastFingerprintRef.current = computeFilesFingerprint(currentFiles);
           lastFilesSnapshotRef.current = { ...currentFiles };
 
-          // If files changed during boot, sync them immediately
           const bootFingerprint = computeFilesFingerprint(activeProject.files);
           if (lastFingerprintRef.current !== bootFingerprint) {
             addLog("\n🔄 Files changed during boot, syncing...\n");
@@ -102,7 +106,6 @@ export function PreviewPanel() {
         console.error("WebContainer boot error:", error);
         addLog(`\n❌ Error: ${error}\n`);
         isBootingRef.current = false;
-        generateFallbackPreview(activeProject.files);
       } finally {
         setIsBooting(false);
       }
@@ -112,38 +115,25 @@ export function PreviewPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProject?.id, activeProject && Object.keys(activeProject.files).length, showPreview]);
 
-  // ============================================
-  // Effect 2: Sync file changes to running WebContainer (debounced)
-  // ============================================
+  // Sync file changes to running WebContainer (debounced)
   useEffect(() => {
-    if (!activeProject) return;
-    if (!hasBootedRef.current) return;
+    if (!activeProject || !hasBootedRef.current) return;
     if (activeProject.id !== lastProjectIdRef.current) return;
 
     const currentFingerprint = computeFilesFingerprint(activeProject.files);
     if (currentFingerprint === lastFingerprintRef.current) return;
 
-    // Debounce: wait 500ms after last change before writing
-    if (syncTimerRef.current) {
-      clearTimeout(syncTimerRef.current);
-    }
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
 
     const filesToSync = activeProject.files;
     syncTimerRef.current = setTimeout(() => {
       syncFilesToContainer(filesToSync);
     }, 500);
 
-    return () => {
-      if (syncTimerRef.current) {
-        clearTimeout(syncTimerRef.current);
-      }
-    };
+    return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProject?.files]);
 
-  /**
-   * Write only changed files to the WebContainer
-   */
   const syncFilesToContainer = useCallback(
     async (currentFiles: Record<string, ProjectFile>) => {
       const prevFiles = lastFilesSnapshotRef.current;
@@ -157,105 +147,24 @@ export function PreviewPanel() {
           changeCount++;
         }
       }
-
       if (changeCount === 0) return;
 
       setIsSyncing(true);
-      addLog(`\n🔄 Syncing ${changeCount} changed file(s)...\n`);
-
       try {
         if (changeCount <= 3) {
           for (const [path, file] of Object.entries(changedFiles)) {
             await updateFileInContainer(path, file.content);
-            addLog(`  ✓ ${path}\n`);
           }
         } else {
           await writeFilesToContainer(changedFiles);
-          addLog(`  ✓ ${Object.keys(changedFiles).join(", ")}\n`);
         }
-
         lastFingerprintRef.current = computeFilesFingerprint(currentFiles);
         lastFilesSnapshotRef.current = { ...currentFiles };
       } catch (error) {
         console.error("File sync error:", error);
-        addLog(`\n⚠️ Sync error: ${error}\n`);
       } finally {
         setIsSyncing(false);
       }
-    },
-    [addLog]
-  );
-
-  // ============================================
-  // Manual recompile: write ALL files and refresh iframe
-  // ============================================
-  const handleRecompile = useCallback(async () => {
-    if (!activeProject || !hasBootedRef.current) return;
-
-    setIsSyncing(true);
-    addLog("\n🔨 Recompiling — writing all files...\n");
-
-    try {
-      // Write ALL current files to WebContainer (not just changed ones)
-      await writeFilesToContainer(activeProject.files);
-
-      // Update snapshot
-      lastFingerprintRef.current = computeFilesFingerprint(activeProject.files);
-      lastFilesSnapshotRef.current = { ...activeProject.files };
-
-      addLog(`  ✓ ${Object.keys(activeProject.files).length} files written\n`);
-
-      // Give Vite a moment to pick up changes, then refresh iframe
-      setTimeout(() => {
-        if (iframeRef.current && previewUrl) {
-          iframeRef.current.src = previewUrl;
-          addLog("  ✓ Preview refreshed\n");
-        }
-      }, 1000);
-    } catch (error) {
-      console.error("Recompile error:", error);
-      addLog(`\n⚠️ Recompile error: ${error}\n`);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [activeProject, previewUrl, addLog]);
-
-  // ============================================
-  // Fallback: generate static HTML preview
-  // ============================================
-  const generateFallbackPreview = useCallback(
-    (files: Record<string, ProjectFile>) => {
-      const indexHtml = files["index.html"]?.content;
-      const globalCss =
-        files["src/index.css"]?.content ||
-        files["src/globals.css"]?.content ||
-        files["src/app/globals.css"]?.content ||
-        "";
-
-      let html = "";
-      if (indexHtml) {
-        html = indexHtml;
-      } else {
-        html = `<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<script src="https://cdn.tailwindcss.com"><\/script>
-<style>${globalCss}</style>
-</head><body class="bg-gray-50 min-h-screen flex items-center justify-center font-sans">
-<div class="text-center p-8">
-  <div class="text-4xl mb-4">🚀</div>
-  <h2 class="text-xl font-semibold text-gray-800 mb-2">Project Ready</h2>
-  <p class="text-gray-500 text-sm max-w-sm">
-    ${Object.keys(files).length} files created.
-    WebContainer will provide full framework preview.
-  </p>
-</div>
-</body></html>`;
-      }
-
-      const blob = new Blob([html], { type: "text/html" });
-      setPreviewUrl(URL.createObjectURL(blob));
     },
     []
   );
@@ -266,62 +175,197 @@ export function PreviewPanel() {
     }
   };
 
+  const handleRestart = useCallback(async () => {
+    if (!activeProject) return;
+    setIsRestarting(true);
+    setPreviewUrl(null);
+    setLogs("");
+    addLog("🔄 Full restart...\n");
+    try {
+      await restartDevServer(activeProject.files, addLog, (url) => {
+        setPreviewUrl(url);
+        hasBootedRef.current = true;
+        lastFingerprintRef.current = computeFilesFingerprint(activeProject.files);
+        lastFilesSnapshotRef.current = { ...activeProject.files };
+      });
+    } catch (error) {
+      addLog(`\n❌ Restart error: ${error}\n`);
+    } finally {
+      setIsRestarting(false);
+    }
+  }, [activeProject, addLog]);
+
+  const handleDownload = useCallback(() => {
+    if (!activeProject) return;
+    downloadProjectZip(activeProject.title, activeProject.files);
+  }, [activeProject]);
+
+  const handleDeploy = useCallback(async () => {
+    if (!activeProject) return;
+    setIsDeploying(true);
+    setDeployUrl(null);
+    setShowLogs(true);
+    addLog("\n━━━ DEPLOY START ━━━\n");
+
+    try {
+      addLog("Step 1: Running 'vite build' in WebContainer...\n");
+      const buildExit = await runCommand("npx vite build", addLog);
+      addLog(`\nBuild exit code: ${buildExit}\n`);
+      if (buildExit !== 0) {
+        addLog("❌ Build failed. Fix errors and try again.\n");
+        setIsDeploying(false);
+        return;
+      }
+
+      addLog("\nStep 2: Reading build output from WebContainer...\n");
+      const builtFiles = await readDistFiles();
+      const fileKeys = Object.keys(builtFiles);
+      addLog(`Found ${fileKeys.length} files in build output:\n`);
+      for (const key of fileKeys) {
+        const size = builtFiles[key].content.length;
+        addLog(`  ${key} (${size} bytes)\n`);
+      }
+
+      if (fileKeys.length === 0) {
+        addLog("❌ No build output found in dist/ or build/\n");
+        setIsDeploying(false);
+        return;
+      }
+
+      addLog(`\nStep 3: Sending ${fileKeys.length} files to /api/deploy...\n`);
+      const payload = {
+        projectId: activeProject.id,
+        title: activeProject.title,
+        files: builtFiles,
+        netlifyId: activeProject.netlifyId,
+      };
+      addLog(`Payload size: ~${JSON.stringify(payload).length} bytes\n`);
+
+      const res = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      addLog(`API response status: ${res.status}\n`);
+      const data = await res.json();
+      addLog(`API response: ${JSON.stringify(data, null, 2)}\n`);
+
+      if (data.url) {
+        setDeployUrl(data.url);
+        addLog(`\n✅ Deployed: ${data.url}\n`);
+        if (data.siteId) {
+          useProjectStore.getState().updateProjectMeta(activeProject.id, {
+            netlifyId: data.siteId,
+            lastDeployUrl: data.url,
+          });
+        }
+      } else {
+        addLog(`\n❌ Deploy failed: ${data.error || "Unknown error"}\n`);
+      }
+    } catch (error) {
+      addLog(`\n❌ Deploy error: ${error}\n`);
+    } finally {
+      addLog("━━━ DEPLOY END ━━━\n");
+      setIsDeploying(false);
+    }
+  }, [activeProject, addLog]);
+
   if (!showPreview || !activeProject) return null;
+
+  const busy = isBooting || isRestarting;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#1e1e1e] border-t border-[#2b2b2b]">
-      {/* Browser toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0 bg-[#252526] border-b border-[#2b2b2b]">
-        {/* Actions */}
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 px-2 h-[36px] flex-shrink-0 bg-[#252526] border-b border-[#2b2b2b]">
         <button
           onClick={handleRefresh}
-          className="p-1 rounded-[3px] text-[#cccccc] hover:bg-[#333333] hover:text-white transition-none cursor-pointer"
+          disabled={busy}
+          className="p-1 rounded text-[#cccccc] hover:bg-[#333333] hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
           title="Refresh"
         >
-          <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+          <RefreshCw className="w-3.5 h-3.5" />
         </button>
 
         {/* URL bar */}
-        <div className="flex items-center gap-2 flex-1 px-3 py-1 rounded-[3px] bg-[#3c3c3c] border border-transparent focus-within:border-[#007acc] transition-colors">
-          {isBooting ? (
+        <div className="flex items-center gap-1.5 flex-1 px-2.5 py-1 rounded bg-[#3c3c3c] mx-1">
+          {busy ? (
             <Loader2 className="w-3 h-3 animate-spin text-[#007acc]" />
           ) : isSyncing ? (
             <Loader2 className="w-3 h-3 animate-spin text-[#cca700]" />
           ) : (
-            <Globe className={`w-3 h-3 ${previewUrl ? "text-[#89d185]" : "text-[#888888]"}`} />
+            <Globe className={`w-3 h-3 ${previewUrl ? "text-[#89d185]" : "text-[#666]"}`} />
           )}
-          <span className="text-[12px] font-mono text-[#cccccc] truncate select-all">
-            {isBooting
+          <span className="text-[11px] font-mono text-[#ccc] truncate">
+            {busy
               ? "Starting server..."
               : isSyncing
-              ? "Syncing files..."
+              ? "Syncing..."
               : previewUrl
-              ? "http://localhost:3000"
+              ? "localhost:3000"
               : "No preview"}
           </span>
         </div>
 
-        {/* Right Actions */}
         <button
-          onClick={() => setShowLogs(!showLogs)}
-          className={`p-1 rounded-[3px] transition-none cursor-pointer flex items-center gap-1.5 px-2 ${
-            showLogs
-              ? "bg-[#333333] text-white"
-              : "text-[#cccccc] hover:bg-[#333333] hover:text-white"
-          }`}
-          title="Toggle Logs"
+          onClick={handleRestart}
+          disabled={busy}
+          className="p-1 rounded text-[#cccccc] hover:bg-[#333333] hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+          title="Full Restart (npm install + dev)"
         >
-          <Terminal className="w-3.5 h-3.5" strokeWidth={2} />
-          <span className="text-[11px] font-semibold tracking-wide uppercase">Logs</span>
+          <RotateCcw className="w-3.5 h-3.5" />
         </button>
 
         <button
-          onClick={handleRecompile}
-          disabled={!hasBootedRef.current || isSyncing || isBooting}
-          className="p-1 rounded-[3px] text-[#cccccc] hover:bg-[#333333] hover:text-white transition-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Recompile"
+          onClick={handleDownload}
+          className="p-1 rounded text-[#cccccc] hover:bg-[#333333] hover:text-white cursor-pointer"
+          title="Download project as ZIP"
         >
-          <Play className="w-3.5 h-3.5" strokeWidth={2} />
+          <Download className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          onClick={handleDeploy}
+          disabled={isDeploying || busy}
+          className="p-1 rounded text-[#cccccc] hover:bg-[#333333] hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+          title="Build & Deploy to Netlify"
+        >
+          {isDeploying ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Rocket className="w-3.5 h-3.5" />
+          )}
+        </button>
+
+        {deployUrl && (
+          <a
+            href={deployUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-[#89d185] hover:underline truncate max-w-[120px]"
+          >
+            Live
+          </a>
+        )}
+
+        <div className="flex-1" />
+
+        <button
+          onClick={() => setShowLogs(!showLogs)}
+          className={`p-1 rounded cursor-pointer flex items-center gap-1 px-1.5 ${
+            showLogs
+              ? "bg-[#333] text-white"
+              : "text-[#ccc] hover:bg-[#333] hover:text-white"
+          }`}
+          title="Toggle Logs"
+        >
+          <ScrollText className="w-3.5 h-3.5" />
+          {showLogs ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronUp className="w-3 h-3" />
+          )}
         </button>
 
         {previewUrl && (
@@ -329,26 +373,22 @@ export function PreviewPanel() {
             href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1 rounded-[3px] text-[#cccccc] hover:bg-[#333333] hover:text-white transition-none cursor-pointer"
-            title="Open in Browser"
+            className="p-1 rounded text-[#ccc] hover:bg-[#333] hover:text-white"
           >
-            <ExternalLink className="w-3.5 h-3.5" strokeWidth={2} />
+            <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
       </div>
 
-      {/* Content area */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Preview iframe */}
-        <div
-          className="flex-1 flex items-start justify-center bg-white"
-          style={{ display: showLogs ? "none" : "block" }}
-        >
-          {isBooting ? (
-            <div className="flex flex-col items-center justify-center h-full w-full gap-3 bg-[#1e1e1e]">
+        <div className="flex-1 min-h-0 relative">
+          {busy ? (
+            <div className="flex flex-col items-center justify-center h-full w-full bg-[#1e1e1e] gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-[#007acc]" />
-              <p className="text-[13px] text-[#cccccc] font-sans">
-                Booting WebContainer...
+              <p className="text-[13px] text-[#ccc]">
+                {isRestarting ? "Restarting..." : "Booting WebContainer..."}
               </p>
             </div>
           ) : previewUrl ? (
@@ -361,18 +401,17 @@ export function PreviewPanel() {
             />
           ) : (
             <div className="flex items-center justify-center h-full w-full bg-[#1e1e1e]">
-              <p className="text-[13px] text-[#888888] font-sans">
-                Preview will appear here
-              </p>
+              <p className="text-[13px] text-[#666]">Preview will appear here</p>
             </div>
           )}
         </div>
 
-        {/* Terminal logs panel */}
+        {/* Logs panel */}
         {showLogs && (
-          <div className="flex-1 flex flex-col bg-[#1e1e1e]">
-            <pre className="flex-1 overflow-auto p-4 text-[12px] leading-relaxed font-mono text-[#cccccc] whitespace-pre-wrap word-break">
-              {logs || "Waiting for project to start...\n"}
+          <div className="h-[180px] flex-shrink-0 border-t border-[#2b2b2b] bg-[#0c0c14] overflow-y-auto">
+            <pre className="p-3 text-[11px] leading-[1.6] text-[#ccc] font-mono whitespace-pre-wrap">
+              {logs || "No logs yet..."}
+              <div ref={logsEndRef} />
             </pre>
           </div>
         )}

@@ -30,6 +30,7 @@ interface ProjectState {
   createProject: (title: string, framework: Framework) => Project;
   deleteProject: (id: string) => void;
   updateProjectTitle: (id: string, title: string) => void;
+  updateProjectMeta: (id: string, meta: Partial<Pick<Project, "netlifyId" | "lastDeployUrl">>) => void;
 
   // File operations
   addFile: (projectId: string, path: string, content: string) => void;
@@ -145,6 +146,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === id ? { ...p, title, updatedAt: Date.now() } : p
+      ),
+    }));
+  },
+
+  updateProjectMeta: (id, meta) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === id ? { ...p, ...meta, updatedAt: Date.now() } : p
       ),
     }));
   },

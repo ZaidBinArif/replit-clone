@@ -5,9 +5,9 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import { useProjectStore } from "@/stores/project-store";
 import { getLanguageFromPath } from "@/lib/utils";
 import { codeStudioTheme } from "@/lib/monaco-theme";
+import { updateFileInContainer } from "@/lib/webcontainer";
 import type { editor } from "monaco-editor";
 
-// Register custom theme before mount
 let themeRegistered = false;
 
 export function CodeEditor() {
@@ -25,12 +25,27 @@ export function CodeEditor() {
   const handleEditorMount: OnMount = useCallback((editorInstance, monaco) => {
     editorRef.current = editorInstance;
 
-    // Register custom theme
     if (!themeRegistered) {
       monaco.editor.defineTheme("codestudio-dark", codeStudioTheme);
       themeRegistered = true;
     }
     monaco.editor.setTheme("codestudio-dark");
+
+    // Ctrl+S / Cmd+S: save file, clear dirty flag, sync to WebContainer immediately
+    editorInstance.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      () => {
+        const store = useProjectStore.getState();
+        const project = store.getActiveProject();
+        const tabPath = store.activeTabPath;
+        if (!project || !tabPath) return;
+
+        const value = editorInstance.getValue();
+        store.updateFile(project.id, tabPath, value);
+        store.markTabDirty(tabPath, false);
+        updateFileInContainer(tabPath, value).catch(console.error);
+      }
+    );
   }, []);
 
   const handleChange = useCallback(

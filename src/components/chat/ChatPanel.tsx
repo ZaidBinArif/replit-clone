@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { ChatMessage } from "./ChatMessage";
+import { runCommand } from "@/lib/webcontainer";
 import { Send, Loader2, Sparkles, MessageSquare } from "lucide-react";
 
 export function ChatPanel() {
@@ -83,6 +84,15 @@ export function ChatPanel() {
         useProjectStore
           .getState()
           .applyFileOperations(activeProjectId, fileOps);
+      }
+
+      const shellOps = parseShellOperations(fullContent);
+      for (const cmd of shellOps) {
+        try {
+          await runCommand(cmd);
+        } catch (e) {
+          console.error(`Shell command failed: ${cmd}`, e);
+        }
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -234,6 +244,16 @@ function parseFileOperations(content: string) {
   }
 
   return operations;
+}
+
+function parseShellOperations(content: string): string[] {
+  const commands: string[] = [];
+  const regex = /<boltAction\s+type="shell"\s+command="([^"]+)"\s*\/>/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    commands.push(match[1]);
+  }
+  return commands;
 }
 
 function stripProjectPrefix(filePath: string): string {

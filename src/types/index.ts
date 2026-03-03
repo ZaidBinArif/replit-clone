@@ -46,6 +46,8 @@ export interface Project {
   files: Record<string, ProjectFile>;
   messages: ChatMessage[];
   contextState: ContextState;
+  netlifyId?: string;
+  lastDeployUrl?: string;
 }
 
 // ============================================
